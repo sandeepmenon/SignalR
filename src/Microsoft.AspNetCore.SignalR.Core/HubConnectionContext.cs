@@ -320,12 +320,13 @@ namespace Microsoft.AspNetCore.SignalR
 
         private void KeepAliveTick()
         {
+            var timestamp = Stopwatch.GetTimestamp();
             // Implements the keep-alive tick behavior
             // Each tick, we check if the time since the last send is larger than the keep alive duration (in ticks).
             // If it is, we send a ping frame, if not, we no-op on this tick. This means that in the worst case, the
             // true "ping rate" of the server could be (_hubOptions.KeepAliveInterval + HubEndPoint.KeepAliveTimerInterval),
             // because if the interval elapses right after the last tick of this timer, it won't be detected until the next tick.
-            if (Stopwatch.GetTimestamp() - Interlocked.Read(ref _lastSendTimestamp) > _keepAliveDuration)
+            if (timestamp - Interlocked.Read(ref _lastSendTimestamp) > _keepAliveDuration)
             {
                 // Haven't sent a message for the entire keep-alive duration, so send a ping.
                 // If the transport channel is full, this will fail, but that's OK because
@@ -333,7 +334,7 @@ namespace Microsoft.AspNetCore.SignalR
                 // transport is still in the process of sending frames.
                 _ = TryWritePingAsync();
 
-                Interlocked.Exchange(ref _lastSendTimestamp, Stopwatch.GetTimestamp());
+                Interlocked.Exchange(ref _lastSendTimestamp, timestamp);
             }
         }
 
