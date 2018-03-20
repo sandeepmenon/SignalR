@@ -74,40 +74,27 @@ namespace Microsoft.AspNetCore.SignalR
 
         public int? LocalPort => Features.Get<IHttpConnectionFeature>()?.LocalPort;
 
-        public virtual Task WriteAsync(HubMessage message)
+        public virtual ValueTask WriteAsync(HubMessage message)
         {
             // We were unable to get the lock so take the slow async path of waiting for the semaphore
             if (!_writeLock.Wait(0))
             {
-                return WriteSlowAsync(message);
+                return new ValueTask(WriteSlowAsync(message));
             }
 
             // This method should never throw synchronously
             var task = WriteCore(message);
 
             // The write didn't complete synchronously so await completion
-            if (!task.IsCompleted)
+            if (!task.IsCompletedSuccessfully)
             {
-                return CompleteWriteAsync(task);
-            }
-
-            // The write failed so observe the exception
-            if (task.IsFaulted)
-            {
-                try
-                {
-                    task.GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    Log.FailedWritingMessage(_logger, ex);
-                }
+                return new ValueTask(CompleteWriteAsync(task));
             }
 
             // Otherwise, release the lock
             _writeLock.Release();
 
-            return Task.CompletedTask;
+            return default;
         }
 
         private ValueTask<FlushResult> WriteCore(HubMessage message)
@@ -164,16 +151,16 @@ namespace Microsoft.AspNetCore.SignalR
             }
         }
 
-        private Task TryWritePingAsync()
+        private ValueTask TryWritePingAsync()
         {
             // Don't wait for the lock, if it returns false that means someone wrote to the connection
             // and we don't need to send a ping anymore
             if (!_writeLock.Wait(0))
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            return TryWritePingSlowAsync();
+            return new ValueTask(TryWritePingSlowAsync());
         }
 
         private async Task TryWritePingSlowAsync()

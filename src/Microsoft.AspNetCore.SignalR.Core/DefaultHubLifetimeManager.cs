@@ -76,14 +76,14 @@ namespace Microsoft.AspNetCore.SignalR
             {
                 var task = connection.WriteAsync(message);
 
-                if (!task.IsCompleted)
+                if (!task.IsCompletedSuccessfully)
                 {
                     if (tasks == null)
                     {
                         tasks = new List<Task>();
                     }
 
-                    tasks.Add(task);
+                    tasks.Add(task.AsTask());
                 }
             }
 
@@ -118,7 +118,7 @@ namespace Microsoft.AspNetCore.SignalR
                         tasks = new List<Task>();
                     }
 
-                    tasks.Add(task);
+                    tasks.Add(task.AsTask());
                 }
             }
 
@@ -147,7 +147,7 @@ namespace Microsoft.AspNetCore.SignalR
 
             var message = CreateInvocationMessage(methodName, args);
 
-            return connection.WriteAsync(message);
+            return connection.WriteAsync(message).AsTask();
         }
 
         public override Task SendGroupAsync(string groupName, string methodName, object[] args)
@@ -161,7 +161,7 @@ namespace Microsoft.AspNetCore.SignalR
             if (group != null)
             {
                 var message = CreateInvocationMessage(methodName, args);
-                var tasks = group.Values.Select(c => c.WriteAsync(message));
+                var tasks = group.Values.Select(c => c.WriteAsync(message).AsTask());
                 return Task.WhenAll(tasks);
             }
 
@@ -184,7 +184,7 @@ namespace Microsoft.AspNetCore.SignalR
                 var group = _groups[groupName];
                 if (group != null)
                 {
-                    tasks.Add(Task.WhenAll(group.Values.Select(c => c.WriteAsync(message))));
+                    tasks.Add(Task.WhenAll(group.Values.Select(c => c.WriteAsync(message).AsTask())));
                 }
             }
 
@@ -203,7 +203,7 @@ namespace Microsoft.AspNetCore.SignalR
             {
                 var message = CreateInvocationMessage(methodName, args);
                 var tasks = group.Values.Where(connection => !excludedIds.Contains(connection.ConnectionId))
-                    .Select(c => c.WriteAsync(message));
+                    .Select(c => c.WriteAsync(message).AsTask());
                 return Task.WhenAll(tasks);
             }
 
